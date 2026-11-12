@@ -1,0 +1,95 @@
+# ==========================================
+# ONE PIECE: PIRATE KING ADVENTURE
+# Engine: Godot 4.x | Platform: Android
+# ==========================================
+
+extends Node2D
+
+# --- Global Game State ---
+var game_state = {
+	"current_scene": "Menu",
+	"unlocked_characters": ["Luffy"],
+	"coins": 0,
+	"island_id": "start_village"
+}
+
+# --- Touch Controls Configuration ---
+var touch_controls = {
+	"left": false,
+	"right": false,
+	"jump": false,
+	"attack": false
+}
+
+func _input(event):
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			handle_touch_input(event.position)
+		else:
+			touch_controls["attack"] = false # Reset attack on release
+
+func handle_touch_input(pos):
+	# Simple logic to map screen areas to controls
+	if pos.x < width / 3:
+		touch_controls["left"] = true if pos.y > height/2 else false
+	elif pos.x > width * 2/3:
+		touch_controls["right"] = true
+	else:
+		touch_controls["jump"] = true
+
+# --- Core Movement Logic (Luffy Style) ---
+var velocity = Vector2.ZERO
+const SPEED = 200.0
+const JUMP_VEL = -450.0
+const GRAVITY = 1200.0
+
+func _physics_process(delta):
+	# Apply Gravity
+	if not is_on_floor():
+		velocity.y += GRAVITY * delta
+	
+	# Handle Input
+	var direction = 0
+	if touch_controls["left"]: direction -= 1
+	if touch_controls["right"]: direction += 1
+	
+	if direction != 0:
+		velocity.x = lerp(velocity.x, direction * SPEED, 0.2)
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+		
+	if touch_controls["jump"] and is_on_floor():
+		velocity.y = JUMP_VEL
+		touch_controls["jump"] = false
+		
+	move_and_slide()
+
+# --- Combat System ---
+var health = 100
+var is_attacking = false
+
+func attack():
+	if not is_attacking:
+		is_attacking = true
+		print("Gomu Gomu no Pistol!")
+		await get_tree().create_timer(0.3).timeout
+		is_attacking = false
+
+# --- Ship Travel System ---
+func travel_to_island(target_id):
+	game_state.island_id = target_id
+	# In a real scene, this would load the specific level
+	print("Sailing to: " + target_id)
+	pass
+
+# --- Save/Load System ---
+func save_progress():
+	var file = FileAccess.open("user://save.dat", FileAccess.WRITE)
+	file.store_var(game_state)
+	file.close()
+
+func load_progress():
+	if FileAccess.file_exists("user://save.dat"):
+		var file = FileAccess.open("user://save.dat", FileAccess.READ)
+		game_state = file.get_var()
+		file.close()
